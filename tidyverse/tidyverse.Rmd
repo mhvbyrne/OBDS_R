@@ -1,0 +1,197 @@
+---
+title: "Template code for tidyverse"
+author: "Kevin Rue-Albrecht"
+date: "18/11/2021"
+output: html_document
+---
+
+### Read data from the file iris.csv . Assign the data imported from the file to an object called iris_raw .
+
+```{r}
+library("tidyverse")
+
+iris_raw <- read_csv("/t1-data/project/obds/shared/resources/2_r/r_tidyverse/iris.csv")
+
+iris_raw
+```
+
+Double is a data class that means that it has a decimal point.
+
+### What is the class of the data? What are the dimensions of the dataset? What is the type of data stored in each column?
+```{r}
+str(iris_raw)
+```
+
+### Write the dataset to a le named iris.tsv , separating elds with the tabulation character.
+```{r}
+write_tsv(iris_raw, "iris.tsv")
+?write_tsv
+```
+
+### Inspect the iris.tsv le. You can use file.edit() to open the le in the RStudio editor.
+
+```{r}
+file.edit("iris.tsv") #this saves you having to look at the file in the bottom right you can just type this.
+```
+
+### Using iris_raw , for each species of iris, compute the following summary statistics for the sepal_length : mean, median, minimum, maximum.
+```{r}
+summary(iris_raw)
+
+summary_sepal_length <- iris_raw %>% 
+                        summarise(
+                          mean_sepal_length = mean(sepal_length), 
+                          median_sepal_length = median(sepal_length), 
+                          min_sepal_length = min(sepal_length), 
+                          max_sepal_length = max(sepal_length)
+                        )
+
+summary_sepal_length
+```
+### For each species of iris, compute the mean of every column that is numeric. Hint: use the functions dplyr::across() , tidyselect::where() , and base::is.numeric() .
+
+```{r}
+mean_column <- iris_raw %>%
+  group_by(species) %>%               
+  summarise(across(where(is.numeric), mean))
+
+mean_column
+```
+### Filter the table above to retain only species of iris with an average sepal length less than 6 .
+
+```{r}
+mean_column_filter <- mean_column %>% 
+                      filter(sepal_length < 6)
+mean_column_filter
+```
+### Sort the table above by descending sepal_length .
+
+```{r}
+desc_mean_column_filter <- mean_column_filter %>% arrange(desc(sepal_length))
+
+desc_mean_column_filter
+```
+# From the table above, extract the sepal_length column as a numeric vector. Make it a named numeric vector, where each value is named with the corresponding species.
+
+```{r}
+vector1 <- desc_mean_column_filter %>% pull(sepal_length, name = species)
+vector1
+```
+
+```{r}
+iris_raw <- iris_raw %>% 
+            mutate(sepal_area = sepal_length * sepal_width)
+```
+### Subset the result to the columns named species and sepal_area . Subset the result to display the top 5 observations by sepal_area .
+
+```{r}
+iris_raw_subset <- iris_raw %>% 
+                    select(
+                      species, sepal_area
+                    )
+ 
+iris_raw_subset5 <- iris_raw_subset %>%
+                    arrange(desc(sepal_area)) %>% 
+                    slice_head(n = 5)
+
+iris_raw_subset5
+#you can also use slice_max to arrange and cut in 1 command.
+```
+```{r}
+str(iris_raw)
+```
+### Pivot data from long to wide
+
+This is useful to get things into formats that work well with facet wrap and ggplot.
+
+```{r}
+iris_longer <- pivot_longer(iris_raw, cols = c(sepal_length, sepal_width, petal_length, petal_width), names_to = "variable")
+
+iris_longer
+```
+
+### add a unique id and pivot (NB have used where here as a shortcut)
+
+
+```{r}
+iris_longer <- iris_raw %>%
+  mutate(
+    ID = as.character(seq(1, nrow(iris_raw)))
+  ) %>%
+  pivot_longer(cols = where(is.numeric), names_to = "variable")
+
+iris_longer
+```
+
+### Change from pivot_longer to pivot_wider
+```{r}
+iris_wider <- pivot_wider(data = iris_longer, id_cols = ID, names_from = variable, values_from = value)
+
+iris_wider
+```
+
+# Gene expression Part 1
+We provide you with an Excel file that contains gene expression data for the nine most highly variable genes in a pancreas cancer gene expression dataset (https://portal.gdc.cancer.gov/projects/TCGA-PAAD), as well as metadata for the individual samples and genes. Import the gene expression matrix from the Excel le into the R session as a tibble. Assign it to an object named exprs_assay . Reshape the gene expression matrix in a tidy format. Assign it to a new object exprs_assay_long. Draw a histogram of gene expression levels for each gene in a separate facet.
+
+```{r}
+library("readxl")
+excel_sheets("/project/obds/shared/resources/2_r/r_tidyverse/EH2011.xlsx") #this command will give you the sheets in there
+exprs_assay <- read_excel("/project/obds/shared/resources/2_r/r_tidyverse/EH2011.xlsx", "exprs")
+exprs_assay
+```
+```{r}
+#you can do it without piping
+exprs_assay_long <- pivot_longer(data = exprs_assay, cols = where(is.numeric), names_to = "variables")
+
+#or you can pipe
+exprs_assay_long <- exprs_assay %>% 
+                    pivot_longer(
+                      cols = where(is.numeric),
+                      names_to = "variable"
+                      )
+
+
+exprs_assay_long
+```
+
+```{r}
+gene_hist <- ggplot(data = exprs_assay_long, aes(x=value)) +
+              geom_histogram()
+
+gene_hist
+```
+
+
+```{r}
+gene_hist2 <- ggplot(data = exprs_assay_long, aes(x=value)) +
+              geom_histogram() +
+              facet_wrap(~gene) #you have to use a tilda to make it into a formula (you can read the tilda as the word 'by')
+
+gene_hist2
+```
+
+## Gene expression part 2
+Import the sample metadata from the Excel le into the R session as a tibble . Assign it to an object named sample_info . Metadata key: NIH AJCC staging system grade: how abnormal the cancer cells and tissue look under a microscope T: size of the tumor and any spread of cancer into nearby tissue N: spread of cancer to nearby lymph nodes M: metastasis (spread of cancer to other parts of the body) Convert the four columns above to the factor type. Combine sample information with gene expression data. Assign the output to exprs_sampleinfo
+
+```{r}
+sample_info <- read_excel("/project/obds/shared/resources/2_r/r_tidyverse/EH2011.xlsx", "sample_info")
+sample_info
+```
+```{r}
+#Changing to factors in base R
+sample_info$grade <- as.factor(sample_info$grade)
+sample_info$T <- as.factor(sample_info$T)
+sample_info$N <- as.factor(sample_info$N)
+sample_info$M <- as.factor(sample_info$M)
+
+#Changing to factors in tidy verse
+sample_info <- sample_info %>% mutate(across(c(grade, T, N, M), as.factor))
+```
+Combine sample information with gene expression data. Assign the output to exprs_sampleinfo .
+
+```{r}
+exprs_sampleinfo <- inner_join(exprs_assay_long, sample_info, by = "gene")
+exprs_sampleinfo
+```
+
+
