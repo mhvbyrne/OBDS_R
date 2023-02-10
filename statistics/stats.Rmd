@@ -51,6 +51,7 @@ sd(x)
 
 ```{r}
 set.seed(1)
+y <- rnorm(1000, mean=10, sd=5)
 
 
 ```
@@ -58,36 +59,78 @@ set.seed(1)
 - Inspect the output of the `summary()` function for that vector.
 
 ```{r}
-
+summary(y)
 ```
 
 - Compute the mean and standard deviation for those values.
 
 ```{r}
+mean(y)
+sd(y)
 
 ```
 
 ```{r}
+quantile(y, probs = seq(from = 0.1, to = 1, by = 0.1))
+#the seq function is used to produces deciles. The sequence function makes a sequence, in this case we tell it to go from 0.1 to 1 by increments of 0.1
 
 ```
 
 - Compute the deciles (i.e. 10 evenly spaced quantiles) for those values.
 
 ```{r}
-
+df <- data.frame(y)
 ```
 
 - Visualise the distribution of those values as a histogram.
 
 ```{r}
-
+histogram1 <- ggplot(df, aes(y)) +
+              geom_histogram(colour="black")
+histogram1
 ```
 
 - Visualise as vertical lines on the histogram: the mean (red solid), median (red dashed), one standard deviation from the mean (blue solid), and one median absolute deviation from the median (blue dashed).
 
 ```{r}
+summary_df <- df %>% 
+              summarise(
+                mean = mean(y),
+                median = median(y),
+                sd = sd(y),
+                mad = mad(y)
+                )
+summary_df
 
-
+histogram1 <- ggplot(df, aes(y)) +
+              geom_histogram(colour = "black") +
+              geom_vline(
+                xintercept = c(
+                  summary_df$mean,
+                  summary_df$median,
+                  summary_df$mean + summary_df$sd,
+                  summary_df$mean - summary_df$sd,
+                  summary_df$median + summary_df$mad,
+                  summary_df$median - summary_df$mad
+                  ),
+                colour = c(
+                  "red",
+                  "blue",
+                  "blue",
+                  "blue",
+                  "blue",
+                  "blue"
+                  ),
+                linetype = c(
+                  1,
+                  2,
+                  1,
+                  1,
+                  2,
+                  2
+                )
+              )
+histogram1
 
 
 
@@ -99,8 +142,46 @@ set.seed(1)
 
 ```{r}
 set.seed(1)
+x <- rnorm(1000000, mean=10, sd=5)
+df_x <- data.frame(x)
 
+summary_x <- df_x %>% 
+              summarise(
+                mean = mean(x),
+                median = median(x),
+                sd = sd(x),
+                mad = mad(x)
+                )
 
+histogram_x <- ggplot(df_x, aes(x)) +
+              geom_histogram(colour = "black") +
+              geom_vline(
+                xintercept = c(
+                  summary_df$mean,
+                  summary_df$median,
+                  summary_df$mean + summary_df$sd,
+                  summary_df$mean - summary_df$sd,
+                  summary_df$median + summary_df$mad,
+                  summary_df$median - summary_df$mad
+                  ),
+                colour = c(
+                  "red",
+                  "blue",
+                  "blue",
+                  "blue",
+                  "blue",
+                  "blue"
+                  ),
+                linetype = c(
+                  1,
+                  2,
+                  1,
+                  1,
+                  2,
+                  2
+                )
+              )
+histogram_x
 ```
 
 ## Query distributions and probabilities
@@ -110,8 +191,14 @@ For the standard normal distribution ${\mathcal {N}}(\mu=0 ,\sigma ^{2}=1)$:
 - Plot the cumulative distribution function in the range $[-5, 5]$ in 0.1 increment.
 
 ```{r}
+df_cumul <- data.frame(x = seq(from = -5, to = 5, by = 0.1))
 
+plot_cumul <- ggplot(df_cumul, aes(x = x, y = pnorm(x))) +
+              geom_point()
 
+#pnorm is the cumulative distribution
+
+plot_cumul
 
 ```
 
@@ -119,7 +206,13 @@ For the standard normal distribution ${\mathcal {N}}(\mu=0 ,\sigma ^{2}=1)$:
 
 ```{r}
 
+plot_qnorm <- ggplot(df_cumul, aes(x = x, y = qnorm(x))) +
+              geom_point()
 
+#qnorm is the inverse cumulative distribution function
+# Q norm wants a probability and it give an number out put so it only runds from 0 to 1. All the values <0 and >1 will give NaN.
+
+plot_qnorm
 
 ```
 
@@ -127,27 +220,190 @@ For the standard normal distribution ${\mathcal {N}}(\mu=0 ,\sigma ^{2}=1)$:
 
 ```{r}
 
+plot_dnorm <- ggplot(df_cumul, aes(x = x, y = dnorm(x))) +
+              geom_point()
 
+#dnorm is the density function 
+
+plot_dnorm
 
 ```
 
 - What is the probability of observing a value greater than 2?
 
 ```{r}
-
+1 - pnorm(2) #this uses the default settings in R, with your data set you would give the mean and sd (look at the help page).
 ```
 
 - What is the probability of observing a value between -2 and 2?
 
 ```{r}
+pnorm (2) - pnorm(-2)
 
+#this calculates the probability of the bit in the middle of a normal distribution scale between these two values.
 ```
 
 - What is the probability of observing a value more extreme than -2 or 2?
 
 ```{r}
+1- (pnorm (2) - pnorm(-2))
+
+#this calculates the probability of the two tails when the bit in the middle of the normal distribution is removed.
+```
+
+
+### Run a Wilcoxon test to compare the vectors 1:10 and 5:14
+```{r}
+
+a <- c(1:10)
+b <- c(5:14)
+
+wilcox.test(c(1:10),c(5:14), paired = FALSE)
+wilcox.test(a,b, paired = FALSE)
+
+#both of these produce the same value, the warning message occurs as the value increases by 1 each time there is no randomness in this data.
+```
+
+### T test
+
+```{r}
+gene_df <- read_csv("/project/obds/shared/resources/3_r_stats_genomics/statistics/data/gene_exprs.csv")
+
+head(gene_df)
+```
+Run a t-test to compare the gene expression values between the two groups.
+
+```{r}
+#first check you only have two groups
+unique(gene_df$group)
+
+#then run the t test
+t.test(gene_exprs ~ group, data = gene_df)
+```
+
+### You can also use base R
+```{r}
+t.test(
+  x = gene_df$gene_exprs[gene_df$group == "groupA"],
+  y = gene_df$gene_exprs[gene_df$group == "groupB"]
+)
+```
+### lapply returns a vector (has to be scalars) whereas loop returns an object.
+```{r}
+library(readxl)
+log_count_matrix <- read_excel("/project/obds/shared/resources/3_r_stats_genomics/statistics/data/GSE111543.xlsx")
+
+#if you open without specifying, it will open the first sheet.
+# can shee what sheets there are by using: excel_sheets("/project/obds/shared/resources/3_r_stats_genomics/statistics/data/GSE111543.xlsx")
+
+#apply only work properly on a matrix, if anything is a character everything will be a character. So you need to convert to a dataframe, then move the gene name to row names, then convert to a matrix.
+
+log_count_matrix <- as.data.frame(log_count_matrix)
+
+log_count_matrix <- column_to_rownames(log_count_matrix, "gene")
+
+log_count_matrix <- as.matrix(log_count_matrix)
+
+head(log_count_matrix)
 
 ```
+
+Look at the sheets
+```{r}
+excel_sheets("/project/obds/shared/resources/3_r_stats_genomics/statistics/data/GSE111543.xlsx")
+```
+
+```{r}
+cell_info <- read_excel("/project/obds/shared/resources/3_r_stats_genomics/statistics/data/GSE111543.xlsx", sheet = "cell_info")
+```
+
+```{r}
+unique(cell_info$Infection)
+```
+
+```{r}
+infected <- cell_info %>% 
+  filter(Infection == "STM-LT2") %>%
+  pull(Sample) #use pull rather than select so that you get it as a vector 
+
+notinfected <- cell_info %>% 
+  filter(Infection == "Mock") %>%
+  pull(Sample)
+
+notinfected
+```
+### take the first row first to check
+```{r}
+exprs_infected <- log_count_matrix[1, infected] 
+#you can extract the columns by their name as you have already substed them in the 'infected' object
+
+exprs_notinfected <- log_count_matrix[1, notinfected] 
+#you can extract the columns by their name as you have already substed them in 'infected'
+
+exprs_infected
+exprs_notinfected
+```
+
+```{r}
+row_1_test <-  t.test(x = exprs_infected, y = exprs_notinfected)
+row_1_test
+```
+### the results of all tests are just a list displayed in a fancy way. You can extract bits of a test by applying str(testname) on the test. This then gives you all the $variable for the test. You can then extract these using testname$variable. We can use this to extract the p value.
+
+```{r}
+str(row_1_test)
+
+row_1_test$p.value
+```
+
+### 3. Use the function vapply to test every gene set in the list and collect a vector of p-values.
+
+```{r}
+t_test_gene <- function(index) {
+                   #index is like x, it is the value of the row name.
+  exprs_infected <- log_count_matrix[index, infected] 
+  exprs_notinfected <- log_count_matrix[index, notinfected]
+  index_test <- t.test(x = exprs_infected, y = exprs_notinfected) #it then applies a t test for each of those genes
+  index_test$p.value
+  
+  return(index_test$p.value) #return is the output you want it to produce
+}
+
+#example gene and it outputs the p value
+t_test_gene(index = "ENSG00000237973")
+
+```
+
+
+```{r}
+gene_rownames <- rownames(log_count_matrix)
+
+gene_rownames
+
+pvaluesgenes <- vapply(X = gene_rownames,
+                  FUN = t_test_gene,
+                  FUN.VALUE = numeric(1)
+                  ) 
+#Fun.value = we want a numeric value of length 1, can also do numeric(0), which means you just expect a numeric value.
+#vapply is more efficient than sapply as it is designed to be applied over a vector1.
+
+head(pvaluesgenes)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Demo
 
